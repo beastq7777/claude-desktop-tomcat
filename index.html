@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Claude Pet</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="pet-container" id="petContainer">
+    <!-- 状态提示气泡 -->
+    <div class="bubble" id="bubble">
+      <span class="bubble-text">任务完成!</span>
+    </div>
+
+    <!-- 猫咪图片 -->
+    <img class="pet-image" id="petImage" src="assets/cat-idle.svg" alt="Pet">
+
+    <!-- 关闭按钮 -->
+    <div class="close-btn" id="closeBtn">×</div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

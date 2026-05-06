@@ -1,0 +1,121 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+body {
+  background: transparent;
+  overflow: hidden;
+}
+
+.pet-container {
+  position: relative;
+  width: 130px;
+  height: 170px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 35px;
+  cursor: grab;
+}
+
+.pet-container:active {
+  cursor: grabbing;
+}
+
+.pet-image {
+  width: 130px;
+  height: 130px;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+/* 状态提示气泡 */
+.bubble {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(-50%) translateY(10px);
+  transition: opacity 0.3s, transform 0.3s;
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.4);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.bubble.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #764ba2;
+}
+
+/* 关闭按钮 */
+.close-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s, background 0.2s;
+  z-index: 20;
+}
+
+.pet-container:hover .close-btn {
+  opacity: 1;
+}
+
+.close-btn:hover {
+  background: rgba(255, 80, 80, 0.8);
+}
+
+/* 工作状态动画 */
+@keyframes working {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.03) rotate(-4deg); }
+  50% { transform: scale(1.08) rotate(0deg); }
+  75% { transform: scale(1.03) rotate(4deg); }
+}
+
+.pet-image.working {
+  animation: working 1s ease-in-out infinite;
+}
+
+/* 完成动画 */
+@keyframes bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.pet-image.happy {
+  animation: bounce 0.5s ease-in-out 3;
+}
