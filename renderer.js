@@ -157,6 +157,17 @@ window.petAPI.getCatNumber().then((number) => {
   }
 });
 
+// === 点击穿透控制 ===
+// 鼠标进入猫咪时，禁用穿透，允许交互
+petContainer.addEventListener('mouseenter', () => {
+  window.petAPI.setIgnoreMouseEvents(false);
+});
+
+// 鼠标离开猫咪时，启用穿透，让透明区域可点击
+petContainer.addEventListener('mouseleave', () => {
+  window.petAPI.setIgnoreMouseEvents(true);
+});
+
 // 页面卸载时清理
 window.addEventListener('beforeunload', () => {
   window.petAPI.removeAllListeners();

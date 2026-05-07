@@ -98,6 +98,9 @@ function createWindow() {
 
   mainWindow.loadFile('index.html');
   mainWindow.setMovable(true);
+
+  // 默认启用点击穿透，让透明区域可以点击
+  mainWindow.setIgnoreMouseEvents(true, { forward: true });
 }
 
 function createHttpServer() {
@@ -233,5 +236,18 @@ ipcMain.on('go-to-terminal', () => {
   console.log('[Pet] Going to terminal...');
   if (HWND) {
     activateWindowByHwnd(HWND);
+  }
+});
+
+// IPC: 设置是否忽略鼠标事件
+ipcMain.on('set-ignore-mouse-events', (event, ignore) => {
+  if (mainWindow) {
+    if (ignore) {
+      // 忽略鼠标事件，透明区域穿透
+      mainWindow.setIgnoreMouseEvents(true, { forward: true });
+    } else {
+      // 不忽略，允许交互
+      mainWindow.setIgnoreMouseEvents(false);
+    }
   }
 });

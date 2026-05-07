@@ -43,6 +43,11 @@ contextBridge.exposeInMainWorld('petAPI', {
     ipcRenderer.send('update-drag', mouseX, mouseY);
   },
 
+  // 设置是否忽略鼠标事件（让透明区域穿透）
+  setIgnoreMouseEvents: (ignore) => {
+    ipcRenderer.send('set-ignore-mouse-events', ignore);
+  },
+
   // 移除监听器
   removeAllListeners: () => {
     ipcRenderer.removeAllListeners('state-change');
