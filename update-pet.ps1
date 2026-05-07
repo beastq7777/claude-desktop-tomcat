@@ -4,50 +4,37 @@ param(
 
 $ErrorActionPreference = "SilentlyContinue"
 
-# Read mapping file
-$mappingFile = $env:TEMP + "\claude-pet-mapping.json"
+# Get current working directory as unique identifier
+$cwd = Get-Location
+$cwdPath = $cwd.ToString()
+# Create a simple hash for the directory path (same method as start-pet.ps1)
+$md5 = [System.Security.Cryptography.MD5]::Create()
+$bytes = [System.Text.Encoding]::UTF8.GetBytes($cwdPath.ToLower())
+$hashBytes = $md5.ComputeHash($bytes)
+$cwdHash = [System.BitConverter]::ToString($hashBytes).Replace("-", "").Substring(0, 16)
+
+Write-Host "[Pet] Working directory: $cwdPath"
+Write-Host "[Pet] Directory hash: $cwdHash"
+
+# Find mapping file
+$mappingDir = $env:TEMP + "\claude-pet"
+$mappingFile = $mappingDir + "\cwd_$cwdHash.json"
 
 if (-not (Test-Path $mappingFile)) {
+    Write-Host "[Pet] No pet found for this directory"
     exit
 }
 
-# Parse JSON
-$json = Get-Content $mappingFile -Raw
-$mapping = $json | ConvertFrom-Json
+# Read mapping
+$mapping = Get-Content $mappingFile -Raw | ConvertFrom-Json
+$port = $mapping.port
 
-# Start from current process and walk up the process tree
-$currentId = $PID
-$maxDepth = 15
+Write-Host "[Pet] Found pet on port $port, sending $Action"
 
-for ($i = 0; $i -lt $maxDepth; $i++) {
-    $idStr = $currentId.ToString()
-
-    # Check each property in the mapping object
-    foreach ($prop in $mapping.PSObject.Properties) {
-        if ($prop.Name -eq $idStr) {
-            $entry = $prop.Value
-            $port = $entry.port
-            try {
-                $null = Invoke-WebRequest -Uri "http://localhost:$port/$Action" -UseBasicParsing -TimeoutSec 2
-            } catch {
-                # Request failed, this mapping is stale - clean it up
-                Write-Host "[Pet] Cleaning up stale mapping for PID $currentId (port $port not responding)"
-                $mapping.PSObject.Properties.Remove($idStr)
-                $mapping | ConvertTo-Json -Depth 2 | Set-Content $mappingFile
-            }
-            exit
-        }
-    }
-
-    # Get parent process ID
-    try {
-        $proc = Get-CimInstance Win32_Process -Filter "ProcessId = $currentId" -ErrorAction SilentlyContinue
-        if ($proc -and $proc.ParentProcessId -and $proc.ParentProcessId -ne $currentId) {
-            $currentId = $proc.ParentProcessId
-        } else {
-            break
-        }
-    } catch {
-        break
-    }
+# Send request to pet
+try {
+    $null = Invoke-WebRequest -Uri "http://localhost:$port/$Action" -UseBasicParsing -TimeoutSec 2
+} catch {
+    Write-Host "[Pet] Failed to connect to port $port, removing mapping"
+    Remove-Item $mappingFile -Force
 }

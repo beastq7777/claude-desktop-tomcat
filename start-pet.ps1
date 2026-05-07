@@ -1,48 +1,18 @@
 $ErrorActionPreference = "SilentlyContinue"
 
-# Function to get process tree (current process and all ancestors)
-function Get-ProcessTree {
-    $result = @()
-    $currentProcessId = $PID
-    $maxDepth = 15
-    
-    for ($i = 0; $i -lt $maxDepth; $i++) {
-        $result += $currentProcessId
-        try {
-            $proc = Get-CimInstance Win32_Process -Filter "ProcessId = $currentProcessId" -ErrorAction SilentlyContinue
-            if ($proc -and $proc.ParentProcessId -and $proc.ParentProcessId -ne $currentProcessId) {
-                $currentProcessId = $proc.ParentProcessId
-            } else {
-                break
-            }
-        } catch {
-            break
-        }
-    }
-    return $result
-}
+# Get current working directory as unique identifier
+$cwd = Get-Location
+$cwdPath = $cwd.ToString()
 
-# Get current active window handle (the terminal running Claude)
-Add-Type @"
-  using System;
-  using System.Runtime.InteropServices;
-  public class Win32 {
-    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
-  }
-"@
-$hwnd = [Win32]::GetForegroundWindow()
-$hwndValue = $hwnd.ToInt64()
+# Create a simple hash for the directory path (for filename)
+# Use a stable method that works across processes
+$md5 = [System.Security.Cryptography.MD5]::Create()
+$bytes = [System.Text.Encoding]::UTF8.GetBytes($cwdPath.ToLower())
+$hashBytes = $md5.ComputeHash($bytes)
+$cwdHash = [System.BitConverter]::ToString($hashBytes).Replace("-", "").Substring(0, 16)
 
-# Get the process ID of the terminal window
-$terminalPid = 0
-[Win32]::GetWindowThreadProcessId($hwnd, [ref]$terminalPid) | Out-Null
-
-# Get all PIDs in current process tree
-$processTree = Get-ProcessTree
-
-Write-Host "[Pet] Terminal PID: $terminalPid"
-Write-Host "[Pet] Process tree: $($processTree -join ' -> ')"
+Write-Host "[Pet] Working directory: $cwdPath"
+Write-Host "[Pet] Directory hash: $cwdHash"
 
 # Scan for available port (starting from 3721)
 $basePort = 3721
@@ -59,83 +29,28 @@ while ($availablePort -lt 3800) {
 # Cat number = port - 3721 + 1
 $catNumber = $availablePort - $basePort + 1
 
-Write-Host "[Pet] Starting cat #$catNumber on port $availablePort, hwnd: $hwndValue"
+Write-Host "[Pet] Starting cat #$catNumber on port $availablePort"
 
-# Save mapping for ALL PIDs in the process tree
-$mappingFile = $env:TEMP + "\claude-pet-mapping.json"
+# Save mapping in temp directory, keyed by working directory hash
+$mappingDir = $env:TEMP + "\claude-pet"
+if (-not (Test-Path $mappingDir)) {
+    New-Item -ItemType Directory -Path $mappingDir | Out-Null
+}
+$mappingFile = $mappingDir + "\cwd_$cwdHash.json"
 
-# Read existing mapping (PowerShell 5.1 compatible)
-$existingMapping = @{}
-if (Test-Path $mappingFile) {
-    try {
-        $json = Get-Content $mappingFile -Raw
-        $parsed = $json | ConvertFrom-Json
-        foreach ($prop in $parsed.PSObject.Properties) {
-            $existingMapping[$prop.Name] = $prop.Value
-        }
-    } catch {}
-}
-
-# Clean up dead process entries and entries for current process tree
-$keysToRemove = @()
-foreach ($key in $existingMapping.Keys) {
-    try {
-        $pid = [int]$key
-        $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
-        if (-not $proc) {
-            $keysToRemove += $key
-            Write-Host "[Pet] Cleaning up dead process entry: PID $pid"
-        }
-        # Also remove entries for PIDs in current process tree (will be re-added with new mapping)
-        if ($processTree -contains $pid) {
-            $keysToRemove += $key
-            Write-Host "[Pet] Cleaning up current process tree entry: PID $pid"
-        }
-    } catch {
-        $keysToRemove += $key
-    }
-}
-foreach ($key in $keysToRemove) {
-    $existingMapping.Remove($key)
-}
-
-# Remove old entries for this port (cleanup)
-$keysToRemove = @()
-foreach ($key in $existingMapping.Keys) {
-    $entry = $existingMapping[$key]
-    if ($entry.port -eq $availablePort) {
-        $keysToRemove += $key
-    }
-}
-foreach ($key in $keysToRemove) {
-    $existingMapping.Remove($key)
-}
-
-# Create new entry
-$newEntry = @{
+# Write mapping file
+$mapping = @{
     port = $availablePort
-    hwnd = $hwndValue
+    cwd = $cwdPath
 }
+$mapping | ConvertTo-Json | Set-Content $mappingFile
 
-# Add mapping for each PID in the process tree
-foreach ($processId in $processTree) {
-    $existingMapping[$processId.ToString()] = $newEntry
-}
+Write-Host "[Pet] Saved mapping: $mappingFile"
 
-# Also add terminal PID
-if ($terminalPid -and -not $existingMapping.ContainsKey($terminalPid.ToString())) {
-    $existingMapping[$terminalPid.ToString()] = $newEntry
-}
-
-# Save mapping
-$existingMapping | ConvertTo-Json -Depth 2 | Set-Content $mappingFile
-
-Write-Host "[Pet] Saved mapping for $($processTree.Count) PIDs + terminal -> port=$availablePort"
-
-# Start Electron app with port and hwnd parameters
+# Start Electron app with port parameter
 $appPath = "E:\coding\claude-desktop-tomcat\claude-pet"
 $electronExe = $appPath + "\node_modules\electron\dist\electron.exe"
-$args = '"' + $appPath + '" --port=' + $availablePort + ' --hwnd=' + $hwndValue
+$args = '"' + $appPath + '" --port=' + $availablePort
 
 Start-Process -FilePath $electronExe -ArgumentList $args
 
@@ -144,3 +59,5 @@ Start-Sleep -Seconds 2
 
 # Send start command to the port
 $null = Invoke-WebRequest -Uri "http://localhost:$availablePort/start" -UseBasicParsing -TimeoutSec 2
+
+Write-Host "[Pet] Cat #$catNumber started!"
