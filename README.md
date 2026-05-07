@@ -94,8 +94,8 @@ npm start
 | 平台 | 状态 |
 |------|------|
 | Windows | ✅ 支持 |
-| Linux | ✅ 支持（需要 wmctrl 或 xdotool） |
-| macOS | ✅ 支持 |
+| Linux | ⚠️ 可能需要修改和调试 |
+| macOS | ⚠️ 可能需要修改和调试 |
 
 ## License
 

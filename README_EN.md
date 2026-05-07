@@ -94,8 +94,8 @@ Replace the images in the `assets/` directory to customize your pet:
 | Platform | Status |
 |----------|--------|
 | Windows | ✅ Supported |
-| Linux | ✅ Supported (requires wmctrl or xdotool) |
-| macOS | ✅ Supported |
+| Linux | ⚠️ May require modification and debugging |
+| macOS | ⚠️ May require modification and debugging |
 
 ## License
 
