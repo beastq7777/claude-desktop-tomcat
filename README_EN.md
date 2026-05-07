@@ -1,5 +1,7 @@
 # Claude Desktop Tomcat
 
+[![English](https://img.shields.io/badge/lang-English-blue.svg)](README_EN.md) [![中文](https://img.shields.io/badge/lang-中文-red.svg)](README.md)
+
 A cute desktop pet companion for your Claude Code programming sessions.
 
 ## Features

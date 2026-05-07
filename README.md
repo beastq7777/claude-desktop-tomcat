@@ -1,5 +1,7 @@
 # Claude Desktop Tomcat
 
+[![English](https://img.shields.io/badge/lang-English-blue.svg)](README_EN.md) [![中文](https://img.shields.io/badge/lang-中文-red.svg)](README.md)
+
 一个可爱的桌面电子宠物，陪伴你的 Claude Code 编程时光。对于我们这种非专业编程人员，在不影响办公的时候也可以跑一下claude，用这个tom猫可以观察程序跑的怎么样了。
 
 ## 功能特性
