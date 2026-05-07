@@ -76,6 +76,29 @@ if (Test-Path $mappingFile) {
     } catch {}
 }
 
+# Clean up dead process entries and entries for current process tree
+$keysToRemove = @()
+foreach ($key in $existingMapping.Keys) {
+    try {
+        $pid = [int]$key
+        $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+        if (-not $proc) {
+            $keysToRemove += $key
+            Write-Host "[Pet] Cleaning up dead process entry: PID $pid"
+        }
+        # Also remove entries for PIDs in current process tree (will be re-added with new mapping)
+        if ($processTree -contains $pid) {
+            $keysToRemove += $key
+            Write-Host "[Pet] Cleaning up current process tree entry: PID $pid"
+        }
+    } catch {
+        $keysToRemove += $key
+    }
+}
+foreach ($key in $keysToRemove) {
+    $existingMapping.Remove($key)
+}
+
 # Remove old entries for this port (cleanup)
 $keysToRemove = @()
 foreach ($key in $existingMapping.Keys) {
