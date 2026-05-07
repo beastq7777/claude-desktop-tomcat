@@ -13,6 +13,16 @@ contextBridge.exposeInMainWorld('petAPI', {
     return ipcRenderer.invoke('get-state');
   },
 
+  // 获取小猫编号
+  getCatNumber: () => {
+    return ipcRenderer.invoke('get-cat-number');
+  },
+
+  // 获取窗口句柄
+  getHwnd: () => {
+    return ipcRenderer.invoke('get-hwnd');
+  },
+
   // 关闭应用
   closeApp: () => {
     ipcRenderer.send('close-app');

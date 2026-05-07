@@ -3,21 +3,36 @@ const http = require('http');
 const path = require('path');
 const { exec } = require('child_process');
 
-// HTTP 服务端口
-const PORT = 3721;
+// 解析命令行参数
+const args = process.argv.slice(2);
+const portArg = args.find(a => a.startsWith('--port='));
+const hwndArg = args.find(a => a.startsWith('--hwnd='));
+
+const PORT = portArg ? parseInt(portArg.split('=')[1]) : 3721;
+const HWND = hwndArg ? hwndArg.split('=')[1] : null;
+const CAT_NUMBER = PORT - 3721 + 1;
 
 let mainWindow = null;
 let httpServer = null;
-
-// 当前状态
 let currentState = 'idle';
 
-// 激活 Claude 终端窗口
-function activateClaudeTerminal() {
-  console.log('[Pet] Activating terminal...');
+console.log(`[Pet] Starting cat #${CAT_NUMBER} on port ${PORT}, hwnd: ${HWND}`);
+
+// 激活指定窗口
+function activateWindowByHwnd(hwnd) {
+  console.log('[Pet] Activating window:', hwnd);
+  console.log('[Pet] HWND type:', typeof hwnd, 'value:', hwnd);
+
+  if (!hwnd) {
+    console.log('[Pet] No hwnd, skipping activation');
+    return;
+  }
 
   const scriptPath = path.join(__dirname, 'activate-terminal.ps1');
-  exec(`powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}"`, (error, stdout, stderr) => {
+  const cmd = `powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}" -hwnd ${hwnd}`;
+  console.log('[Pet] Executing:', cmd);
+
+  exec(cmd, (error, stdout, stderr) => {
     if (error) {
       console.log('[Pet] Activation error:', error.message);
     } else {
@@ -26,16 +41,54 @@ function activateClaudeTerminal() {
   });
 }
 
+// 检查窗口是否存在
+function checkWindowExists(hwnd) {
+  return new Promise((resolve) => {
+    const cmd = `powershell -NoProfile -ExecutionPolicy Bypass -Command "Add-Type 'using System; using System.Runtime.InteropServices; public class Win32 { [DllImport(\\\"user32.dll\\\")] public static extern bool IsWindow(IntPtr hWnd); }'; [Win32]::IsWindow([IntPtr]::new(${hwnd}))"`;
+
+    exec(cmd, (error, stdout) => {
+      if (error) {
+        console.log('[Pet] Window check error:', error.message);
+        resolve(true); // 如果检查失败，假设窗口存在，避免误关闭
+      } else {
+        const result = stdout.trim().toLowerCase() === 'true';
+        console.log(`[Pet] Window ${hwnd} exists: ${result}`);
+        resolve(result);
+      }
+    });
+  });
+}
+
+// 定期检查窗口是否存在
+let checkInterval = null;
+function startWindowCheck() {
+  if (!HWND) return;
+
+  // 延迟10秒后开始检查，给窗口时间稳定
+  setTimeout(() => {
+    checkInterval = setInterval(async () => {
+      const exists = await checkWindowExists(HWND);
+      if (!exists) {
+        console.log('[Pet] Target window closed, exiting...');
+        if (httpServer) {
+          httpServer.close();
+        }
+        app.quit();
+      }
+    }, 5000); // 每5秒检查一次
+  }, 10000); // 10秒后开始
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 130,
     height: 170,
-    frame: false,           // 无边框
-    transparent: true,      // 透明背景
-    alwaysOnTop: true,      // 始终置顶
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
     resizable: false,
-    skipTaskbar: true,      // 不显示在任务栏
-    hasShadow: false,       // 无阴影
+    skipTaskbar: true,
+    hasShadow: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -47,7 +100,6 @@ function createWindow() {
   mainWindow.setMovable(true);
 }
 
-// 创建 HTTP 服务器
 function createHttpServer() {
   httpServer = http.createServer((req, res) => {
     const url = req.url;
@@ -91,10 +143,10 @@ function createHttpServer() {
   });
 }
 
-// 应用就绪
 app.whenReady().then(() => {
   createWindow();
   createHttpServer();
+  startWindowCheck();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -103,24 +155,38 @@ app.whenReady().then(() => {
   });
 });
 
-// 关闭所有窗口时退出 (Windows & Linux)
 app.on('window-all-closed', () => {
   if (httpServer) {
     httpServer.close();
   }
+  if (checkInterval) {
+    clearInterval(checkInterval);
+  }
   app.quit();
 });
 
-// 退出时关闭 HTTP 服务器
 app.on('before-quit', () => {
   if (httpServer) {
     httpServer.close();
+  }
+  if (checkInterval) {
+    clearInterval(checkInterval);
   }
 });
 
 // IPC: 获取当前状态
 ipcMain.handle('get-state', () => {
   return currentState;
+});
+
+// IPC: 获取小猫编号
+ipcMain.handle('get-cat-number', () => {
+  return CAT_NUMBER;
+});
+
+// IPC: 获取窗口句柄
+ipcMain.handle('get-hwnd', () => {
+  return HWND;
 });
 
 // IPC: 关闭窗口
@@ -162,9 +228,10 @@ ipcMain.on('update-drag', (event, mouseX, mouseY) => {
   }
 });
 
-// IPC: 回到终端（激活 Claude 窗口）
+// IPC: 回到终端（激活指定窗口）
 ipcMain.on('go-to-terminal', () => {
   console.log('[Pet] Going to terminal...');
-  // 不再最小化窗口，直接激活终端
-  activateClaudeTerminal();
+  if (HWND) {
+    activateWindowByHwnd(HWND);
+  }
 });

@@ -22,6 +22,26 @@ body {
   cursor: grab;
 }
 
+/* 编号标签 */
+.cat-number {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 12px;
+  font-weight: bold;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.4);
+  z-index: 20;
+}
+
 .pet-container:active {
   cursor: grabbing;
 }

@@ -3,6 +3,7 @@ const petImage = document.getElementById('petImage');
 const bubble = document.getElementById('bubble');
 const closeBtn = document.getElementById('closeBtn');
 const petContainer = document.getElementById('petContainer');
+const catNumber = document.getElementById('catNumber');
 
 // 状态配置
 const stateConfig = {
@@ -146,6 +147,13 @@ petImage.addEventListener('click', (e) => {
 window.petAPI.getState().then((state) => {
   if (state) {
     setState(state);
+  }
+});
+
+// 初始化：获取并显示编号
+window.petAPI.getCatNumber().then((number) => {
+  if (number) {
+    catNumber.textContent = number;
   }
 });
 
