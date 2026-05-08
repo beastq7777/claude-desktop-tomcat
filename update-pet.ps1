@@ -35,21 +35,16 @@ if (Test-Path $mappingFile) {
         Remove-Item $mappingFile -Force
     }
 } else {
-    # No mapping found for this directory
-    if ($Action -eq "done") {
-        # For 'done' action, send to all listening pets to ensure they stop
-        Write-Host "[Pet] No mapping found, sending $Action to all pets"
-        $basePort = 3721
-        for ($port = $basePort; $port -lt 3800; $port++) {
-            $inUse = netstat -ano | Select-String ":$port\s" | Select-String "LISTENING"
-            if ($inUse) {
-                try {
-                    $null = Invoke-WebRequest -Uri "http://localhost:$port/$Action" -UseBasicParsing -TimeoutSec 1
-                    Write-Host "[Pet] Sent $Action to port $port"
-                } catch { }
-            }
+    # No mapping found for this directory, send to all listening pets
+    Write-Host "[Pet] No mapping found, sending $Action to all pets"
+    $basePort = 3721
+    for ($port = $basePort; $port -lt 3800; $port++) {
+        $inUse = netstat -ano | Select-String ":$port\s" | Select-String "LISTENING"
+        if ($inUse) {
+            try {
+                $null = Invoke-WebRequest -Uri "http://localhost:$port/$Action" -UseBasicParsing -TimeoutSec 1
+                Write-Host "[Pet] Sent $Action to port $port"
+            } catch { }
         }
-    } else {
-        Write-Host "[Pet] No pet found for this directory"
     }
 }
