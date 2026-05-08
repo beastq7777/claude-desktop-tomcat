@@ -17,6 +17,23 @@ $cwdHash = [System.BitConverter]::ToString($hashBytes).Replace("-", "").Substrin
 Write-Host "[Pet] Working directory: $cwdPath"
 Write-Host "[Pet] Directory hash: $cwdHash"
 
+# Function to send to all listening pets
+function Send-ToAllPets {
+    param([string]$Action)
+
+    Write-Host "[Pet] Sending $Action to all pets"
+    $basePort = 3721
+    for ($port = $basePort; $port -lt 3800; $port++) {
+        $inUse = netstat -ano | Select-String ":$port\s" | Select-String "LISTENING"
+        if ($inUse) {
+            try {
+                $null = Invoke-WebRequest -Uri "http://localhost:$port/$Action" -UseBasicParsing -TimeoutSec 1
+                Write-Host "[Pet] Sent $Action to port $port"
+            } catch { }
+        }
+    }
+}
+
 # Find mapping file
 $mappingDir = $env:TEMP + "\claude-pet"
 $mappingFile = $mappingDir + "\cwd_$cwdHash.json"
@@ -33,18 +50,10 @@ if (Test-Path $mappingFile) {
     } catch {
         Write-Host "[Pet] Failed to connect to port $port, removing mapping"
         Remove-Item $mappingFile -Force
+        # Mapping is stale, send to all pets instead
+        Send-ToAllPets -Action $Action
     }
 } else {
     # No mapping found for this directory, send to all listening pets
-    Write-Host "[Pet] No mapping found, sending $Action to all pets"
-    $basePort = 3721
-    for ($port = $basePort; $port -lt 3800; $port++) {
-        $inUse = netstat -ano | Select-String ":$port\s" | Select-String "LISTENING"
-        if ($inUse) {
-            try {
-                $null = Invoke-WebRequest -Uri "http://localhost:$port/$Action" -UseBasicParsing -TimeoutSec 1
-                Write-Host "[Pet] Sent $Action to port $port"
-            } catch { }
-        }
-    }
+    Send-ToAllPets -Action $Action
 }
