@@ -26,6 +26,11 @@ const stateConfig = {
     bubbleText: '任务完成!',
     next: 'idle',
     delay: 2000
+  },
+  bye: {
+    image: 'assets/bye.png',
+    showBubble: true,
+    bubbleText: '再见!'
   }
 };
 

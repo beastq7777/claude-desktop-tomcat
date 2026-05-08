@@ -61,22 +61,35 @@ function checkWindowExists(hwnd) {
 
 // 定期检查窗口是否存在
 let checkInterval = null;
+let isExiting = false;
 function startWindowCheck() {
   if (!HWND) return;
 
-  // 延迟10秒后开始检查，给窗口时间稳定
+  // 延迟5秒后开始检查，给窗口时间稳定
   setTimeout(() => {
     checkInterval = setInterval(async () => {
+      if (isExiting) return; // 已经在退出流程中
+
       const exists = await checkWindowExists(HWND);
       if (!exists) {
-        console.log('[Pet] Target window closed, exiting...');
-        if (httpServer) {
-          httpServer.close();
+        console.log('[Pet] Target window closed, showing bye...');
+        isExiting = true;
+
+        // 先显示告别图片
+        if (mainWindow) {
+          mainWindow.webContents.send('state-change', 'bye');
         }
-        app.quit();
+
+        // 等待2秒后退出
+        setTimeout(() => {
+          if (httpServer) {
+            httpServer.close();
+          }
+          app.quit();
+        }, 2000);
       }
-    }, 5000); // 每5秒检查一次
-  }, 10000); // 10秒后开始
+    }, 2000); // 每2秒检查一次
+  }, 5000); // 5秒后开始
 }
 
 function createWindow() {
