@@ -33,7 +33,35 @@ if (Test-Path $mappingFile) {
     } catch {
         Write-Host "[Pet] Failed to connect to port $port, pet may be closed"
         Remove-Item $mappingFile -Force
+
+        # If this was a 'done' command, still try to stop all pets
+        if ($Action -eq "done") {
+            Write-Host "[Pet] Broadcasting done to all pets"
+            $basePort = 3721
+            for ($p = $basePort; $p -lt 3800; $p++) {
+                $inUse = netstat -ano | Select-String ":$p\s" | Select-String "LISTENING"
+                if ($inUse) {
+                    try {
+                        $null = Invoke-WebRequest -Uri "http://localhost:$p/$Action" -UseBasicParsing -TimeoutSec 1
+                    } catch { }
+                }
+            }
+        }
     }
 } else {
     Write-Host "[Pet] No pet found for this directory"
+
+    # For 'done' command, broadcast to all pets to ensure they stop
+    if ($Action -eq "done") {
+        Write-Host "[Pet] Broadcasting done to all pets"
+        $basePort = 3721
+        for ($p = $basePort; $p -lt 3800; $p++) {
+            $inUse = netstat -ano | Select-String ":$p\s" | Select-String "LISTENING"
+            if ($inUse) {
+                try {
+                    $null = Invoke-WebRequest -Uri "http://localhost:$p/$Action" -UseBasicParsing -TimeoutSec 1
+                } catch { }
+            }
+        }
+    }
 }
