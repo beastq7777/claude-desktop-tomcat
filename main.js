@@ -125,6 +125,14 @@ function createHttpServer() {
       res.end(JSON.stringify({ status: 'ok', state: 'working' }));
       console.log('[Pet] Working...');
     }
+    else if (url === '/waiting') {
+      currentState = 'waiting';
+      if (mainWindow) {
+        mainWindow.webContents.send('state-change', 'waiting');
+      }
+      res.end(JSON.stringify({ status: 'ok', state: 'waiting' }));
+      console.log('[Pet] Waiting for user input...');
+    }
     else if (url === '/done') {
       currentState = 'done';
       if (mainWindow) {

@@ -15,6 +15,11 @@ const stateConfig = {
     image: 'assets/working.png',
     showBubble: false
   },
+  waiting: {
+    image: 'assets/question.png',
+    showBubble: true,
+    bubbleText: '等待选择...'
+  },
   done: {
     image: 'assets/happy.png',
     showBubble: true,
