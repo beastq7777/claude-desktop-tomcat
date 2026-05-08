@@ -16,7 +16,6 @@ $cwd = Get-Location
 $cwdPath = $cwd.ToString()
 
 # Create a simple hash for the directory path (for filename)
-# Use a stable method that works across processes
 $md5 = [System.Security.Cryptography.MD5]::Create()
 $bytes = [System.Text.Encoding]::UTF8.GetBytes($cwdPath.ToLower())
 $hashBytes = $md5.ComputeHash($bytes)
@@ -25,7 +24,38 @@ $cwdHash = [System.BitConverter]::ToString($hashBytes).Replace("-", "").Substrin
 Write-Host "[Pet] Working directory: $cwdPath"
 Write-Host "[Pet] Directory hash: $cwdHash"
 
-# Scan for available port (starting from 3721)
+# Check if a pet already exists for THIS directory
+$mappingDir = $env:TEMP + "\claude-pet"
+$mappingFile = $mappingDir + "\cwd_$cwdHash.json"
+
+if (Test-Path $mappingFile) {
+    # Read existing mapping
+    $mapping = Get-Content $mappingFile -Raw | ConvertFrom-Json
+    $existingPort = $mapping.port
+
+    # Check if the port for THIS directory's pet is still listening
+    $portListening = netstat -ano | Select-String ":$existingPort\s" | Select-String "LISTENING"
+
+    if ($portListening) {
+        Write-Host "[Pet] Cat already running on port $existingPort for this directory, reusing"
+
+        # Update hwnd in mapping
+        $mapping.hwnd = $hwndValue
+        $mapping | ConvertTo-Json | Set-Content $mappingFile
+
+        # Send start command to existing pet
+        try {
+            $null = Invoke-WebRequest -Uri "http://localhost:$existingPort/start" -UseBasicParsing -TimeoutSec 2
+        } catch {}
+
+        exit
+    } else {
+        Write-Host "[Pet] Existing pet on port $existingPort is gone, starting new one"
+        Remove-Item $mappingFile -Force
+    }
+}
+
+# Find next available port
 $basePort = 3721
 $availablePort = $basePort
 
@@ -42,12 +72,10 @@ $catNumber = $availablePort - $basePort + 1
 
 Write-Host "[Pet] Starting cat #$catNumber on port $availablePort"
 
-# Save mapping in temp directory, keyed by working directory hash
-$mappingDir = $env:TEMP + "\claude-pet"
+# Create mapping directory if not exists
 if (-not (Test-Path $mappingDir)) {
     New-Item -ItemType Directory -Path $mappingDir | Out-Null
 }
-$mappingFile = $mappingDir + "\cwd_$cwdHash.json"
 
 # Write mapping file
 $mapping = @{
